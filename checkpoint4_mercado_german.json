@@ -1,0 +1,490 @@
+{
+  "name": "GesFlota Manager M4",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "id": "28933bb1-6802-42a2-b5e2-968ccc4f0842",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4RJSkpFK921X7acI",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "03bab3fb-4331-4bb5-8889-b356766d2294",
+              "leftValue": "={{ $json.Subject }}",
+              "rightValue": "Auto-reply",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "4d1d4854-135e-4e1f-a3f0-42895e9392bc",
+              "leftValue": "={{ $json.Subject }}",
+              "rightValue": "Out of office",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "8a4401e2-c116-4608-8f12-c3ce982688de",
+              "leftValue": "={{ $json.Subject }}",
+              "rightValue": "Undeliverable",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "ddc6bce1-0a54-4485-ab10-276c5c156f87",
+              "leftValue": "={{ $json.From }}",
+              "rightValue": "no-reply@",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "2a483fdc-e7f2-4f96-8e50-0d2aa7157595",
+              "leftValue": "={{ $json.From }}",
+              "rightValue": "noreply@",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        0
+      ],
+      "id": "472f648d-dfd2-480a-a944-1422cb510887",
+      "name": "Is Auto-Reply?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Gmail Trigger').item.json.snippet }}",
+        "options": {
+          "systemMessage": "Sos el asistente de soporte de GesFlota, un SaaS de gestión de flotas vehiculares.\n\nTu trabajo es:\n1. Leer el email del cliente y redactar una respuesta profesional y útil en español.\n2. Extraer los datos del remitente para registrarlo en el CRM.\n\nDel email entrante, extraé estos datos y devolvelos al final de tu respuesta entre delimitadores:\n[DATOS_CONTACTO]\nnombre: (extraer del campo From o firma)\nemail: {{ $('Gmail Trigger').item.json.From }}\nasunto: {{ $('Gmail Trigger').item.json.Subject }}\n[FIN_DATOS_CONTACTO]\n\nReglas:\n- Respuesta concisa y profesional\n- En español latinoamerica\n- No inventar datos que no estén en el email\n- No incluir HTML ni payloads técnicos"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        528,
+        16
+      ],
+      "id": "ca90e446-16c8-47ed-9331-1292111a30ec",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-opus-5-5",
+          "mode": "list",
+          "cachedResultName": "Claude Opus 5.5"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.6,
+      "position": [
+        528,
+        192
+      ],
+      "id": "85e82202-2196-403b-961f-ce2c8c1e6f1e",
+      "name": "Anthropic Chat Model",
+      "credentials": {
+        "anthropicApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "385990f5-f551-42c3-a531-d21de61bdadd",
+              "name": "=email_from",
+              "value": "={{ $('Gmail Trigger').item.json.From.match(/<(.+)>/)?.[1] ?? $('Gmail Trigger').item.json.From }}",
+              "type": "string"
+            },
+            {
+              "id": "ff2195cc-9b78-44e7-ae51-e69348db8f53",
+              "name": "=email_subject",
+              "value": "={{ $('Gmail Trigger').item.json.Subject }}",
+              "type": "string"
+            },
+            {
+              "id": "f5cfd3b9-8eb7-4532-a3e2-ded6e1418132",
+              "name": "=email_body",
+              "value": "={{ $('AI Agent').item.json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "3bf27b20-542c-4bb4-a7ae-e8902134b658",
+              "name": "=ai_response",
+              "value": "={{ $('AI Agent').item.json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        848,
+        16
+      ],
+      "id": "97145494-cf8d-4b86-9478-f9a28c9f53f7",
+      "name": "Clean Payload"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "operation": "search",
+        "filterGroupsUi": {
+          "filterGroupsValues": [
+            {
+              "filtersUi": {
+                "filterValues": [
+                  {
+                    "propertyName": "email|string",
+                    "value": "={{ $json.email_from }}"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1072,
+        16
+      ],
+      "id": "9bba6001-6ae1-4759-88cb-21a89060d741",
+      "name": "Lookup Contact",
+      "alwaysOutputData": true,
+      "credentials": {
+        "hubspotOAuth2Api": {
+          "id": "TH8v7i6U7L5uil85",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "email": "={{ $('Clean Payload').item.json.email_from }}",
+        "additionalFields": {
+          "lastName": "={{ $('Clean Payload').item.json.email_subject }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        -48
+      ],
+      "id": "92d7df7e-beba-4689-8d68-421d0df07bbb",
+      "name": "Update a contact",
+      "credentials": {
+        "hubspotOAuth2Api": {
+          "id": "TH8v7i6U7L5uil85",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "email": "={{ $('Clean Payload').item.json.email_from }}",
+        "additionalFields": {
+          "lastName": "={{ $('Clean Payload').item.json.email_from }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        1536,
+        128
+      ],
+      "id": "789fddd3-c87d-4206-b260-076e85a42269",
+      "name": "Create a contact",
+      "credentials": {
+        "hubspotOAuth2Api": {
+          "id": "TH8v7i6U7L5uil85",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "bcc966db-38c3-4406-a895-15983d097ee6",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1296,
+        16
+      ],
+      "id": "32edb59f-bdca-4baf-a2e8-f169c260ea46",
+      "name": "Contact Exists?"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "=Re: {{ $('Clean Payload').item.json.email_subject }}",
+        "message": "={{ $('Clean Payload').item.json.ai_response }}",
+        "options": {
+          "sendTo": "={{ $('Clean Payload').item.json.email_from }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1776,
+        32
+      ],
+      "id": "a8722f13-06a9-44c7-9d38-76bff49bbc00",
+      "name": "Draft Response (HITL)",
+      "webhookId": "71f961a3-0207-4c3d-ac20-ce7ace877251",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "4RJSkpFK921X7acI",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C0C321RKK9B",
+          "mode": "list",
+          "cachedResultName": "todo-alertas-urgentes"
+        },
+        "text": "=📩 Nuevo email procesado\nDe: {{ $('Clean Payload').item.json.email_from }}\nAsunto: {{ $('Clean Payload').item.json.email_subject }}\nBorrador creado en Gmail para revisión.",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.7,
+      "position": [
+        2000,
+        32
+      ],
+      "id": "b74131af-ec0c-43a1-b694-a46a95ef996d",
+      "name": "Notify Slack",
+      "webhookId": "c8b862a6-3291-4979-9dc3-4e02c01bd185",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "QvVyPMXFSYZW61uo",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Is Auto-Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Auto-Reply?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Clean Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Payload": {
+      "main": [
+        [
+          {
+            "node": "Lookup Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Contact": {
+      "main": [
+        [
+          {
+            "node": "Contact Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contact Exists?": {
+      "main": [
+        [
+          {
+            "node": "Update a contact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a contact": {
+      "main": [
+        [
+          {
+            "node": "Draft Response (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a contact": {
+      "main": [
+        [
+          {
+            "node": "Draft Response (HITL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft Response (HITL)": {
+      "main": [
+        [
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7e338536-f57c-4362-a57a-c6fe711adb8a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "74c8e2b843577f238730d64519434ed1394e07b74d15913375caf84f5b1190f1"
+  },
+  "nodeGroups": [],
+  "id": "lsdnMCtrz67ERZfU",
+  "tags": []
+}
